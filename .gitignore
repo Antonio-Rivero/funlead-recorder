@@ -4,6 +4,8 @@ node_modules/
 # build
 dist/
 .next/
+*.tsbuildinfo
+next-env.d.ts
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 *.app

@@ -1,0 +1,132 @@
+// FunLead Recorder — web server schema (single-tenant, self-host).
+// Ported from the FunLead recordings module and STRIPPED of multi-tenant/CRM:
+// no organization/brand scoping, no lead-gate link, no API token model.
+// One owner, one database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model Recording {
+  id           String @id @default(cuid())
+  title        String @default("Untitled recording")
+  shareToken   String @unique // hex 64 — public key for /v/<token>
+  blobUrl      String // public storage URL (Vercel Blob)
+  blobPathname String // for delete on removal
+  mode         String @default("screen") // screen|camera|screen+camera
+  durationSec  Int    @default(0)
+  sizeBytes    Int    @default(0)
+  mimeType     String @default("video/webm")
+  status       String @default("ready") // uploading|ready|failed
+  viewCount    Int    @default(0)
+
+  // Viewer preview: first frame stored as a public JPG (not the video). Best-effort, nullable.
+  posterUrl String?
+
+  // Link expiry: null = never expires. If now > expiresAt, /v does not reveal the video.
+  expiresAt DateTime?
+  // Optional link password: null = no password. bcrypt; never sent to the client.
+  passwordHash String?
+  // Link revocation: null = active. If set, /v shows "disabled" and does not reveal the video.
+  disabledAt DateTime?
+
+  // Presentation: description under the title and an optional CTA on /v + player end-card.
+  description String?
+  ctaLabel    String?
+  ctaUrl      String?
+
+  // Free-form tags to organize/search recordings in the dashboard.
+  tags String[] @default([])
+
+  // Audio transcript (Whisper). null = never generated. transcriptStatus: processing|ready|failed.
+  transcript       String? @db.Text
+  transcriptStatus String?
+  // The owner decides whether the transcript is shown to viewers on /v.
+  transcriptPublic Boolean @default(false)
+
+  // CTA clicks, folder and archive (all additive/nullable).
+  ctaClicks  Int       @default(0)
+  folderId   String?
+  archivedAt DateTime?
+
+  // Configurable end-card overlay shown when the video ends. If endCardCtaUrl is
+  // null, the player falls back to the inline CTA (ctaLabel/ctaUrl).
+  endCardTitle    String?
+  endCardCtaLabel String?
+  endCardCtaUrl   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shareToken])
+  @@index([folderId])
+}
+
+// Emoji reaction left by a viewer on a recording. No hard FK (opaque ids).
+model RecordingReaction {
+  id          String   @id @default(cuid())
+  recordingId String
+  emoji       String // one of the server-validated palette
+  viewerId    String? // viewer first-party id (opaque)
+  atSec       Int? // video second (optional)
+  createdAt   DateTime @default(now())
+
+  @@index([recordingId])
+}
+
+// Folders to organize recordings. No hard FK (folderId opaque on Recording).
+model RecordingFolder {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+}
+
+// View session of a recording (Loom-style analytics). One row per
+// (recordingId, sessionId): the player upserts per heartbeat, not insert per event.
+model RecordingView {
+  id                String   @id @default(cuid())
+  recordingId       String
+  viewerId          String // persistent first-party id (localStorage)
+  sessionId         String // UUID per player mount
+  maxPositionSec    Int      @default(0)
+  watchedSec        Int      @default(0)
+  durationSecAtView Int      @default(0)
+  completed         Boolean  @default(false)
+  referrer          String?
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  country           String?
+  city              String? // viewer city (owner dashboard only, GDPR)
+  ipAddress         String? // viewer IP (owner dashboard only, GDPR)
+  userAgent         String?
+  createdAt         DateTime @default(now())
+  lastHeartbeatAt   DateTime @default(now())
+
+  @@unique([recordingId, sessionId])
+  @@index([recordingId, createdAt])
+  @@index([recordingId, viewerId])
+}
+
+// Viewer comment on a recording, moderated by the owner. Private by default
+// (isPublic=false): only the owner sees it; the owner chooses which to publish.
+model RecordingComment {
+  id          String    @id @default(cuid())
+  recordingId String
+  body        String    @db.Text
+  authorName  String
+  authorEmail String?
+  viewerId    String? // viewer first-party id (opaque)
+  atSec       Int? // video second the comment points to (optional)
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  @@index([recordingId, createdAt])
+}
