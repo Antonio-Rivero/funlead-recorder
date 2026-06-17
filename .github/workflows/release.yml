@@ -1,0 +1,52 @@
+name: release
+# Builds downloadable desktop binaries so anyone can install without a toolchain.
+# Runs on GitHub's own macOS runners (no maintainer infrastructure involved).
+# Creates a DRAFT release — a human verifies a real recording before publishing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest   # Apple Silicon
+            target: aarch64-apple-darwin
+          - runner: macos-13       # Intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install deps
+        run: bun install
+      - name: Fetch static ffmpeg (bundled into the app)
+        run: bash scripts/fetch-ffmpeg.sh
+      - name: Build + draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          args: --target ${{ matrix.target }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          releaseName: "FunLead Recorder ${{ github.ref_type == 'tag' && github.ref_name || github.run_number }}"
+          releaseDraft: true
+          prerelease: false
+# Notes:
+# - Binaries are UNSIGNED (no Apple cert needed; users right-click → Open the first time,
+#   or run: xattr -dr com.apple.quarantine "FunLead Recorder.app").
+#   Signing/notarization is optional and only needs the maintainer's cert if ever desired.
+# - Transcription's whisper.cpp is NOT bundled (keeps the download small); install via
+#   `brew install whisper-cpp` or scripts/fetch-whisper.sh. ffmpeg IS bundled.
+# - Windows/Linux can be added to the matrix later (capture is cross-platform; the
+#   floating camera panel is macOS-only today).
