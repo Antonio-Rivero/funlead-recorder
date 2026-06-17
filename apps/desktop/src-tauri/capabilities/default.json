@@ -13,6 +13,7 @@
     "core:window:allow-set-focus",
     "opener:default",
     "opener:allow-reveal-item-in-dir",
+    "opener:allow-open-url",
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "$HOME/Movies/FunLead/**" }]

@@ -2,6 +2,7 @@ mod audio;
 mod camera;
 mod controls;
 mod ffmpeg;
+mod project;
 mod recorder;
 mod render;
 
@@ -201,6 +202,9 @@ pub fn run() {
             resume_recording,
             trim_recording,
             render::render_video,
+            project::save_project,
+            project::open_project,
+            project::list_projects,
             toggle_camera_window,
             is_camera_window_open,
             show_controls_window,
