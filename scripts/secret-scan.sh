@@ -63,8 +63,10 @@ ENV2="(DATABASE_URL|NEXTAUTH_SECRET|AUTH_SECRET|BLOB_READ_WRITE_TOKEN|FUNLEAD_IN
 m="$(grep -rEnI "${EXCLUDES[@]}" -e "$ENV2" . 2>/dev/null | grep -vE "process\.env|import\.meta\.env|\.env\.example:")"
 if [ -n "$m" ]; then echo "BLOCKED [env:literal-secret-value]"; printf '%s\n' "$m" | sed 's/^/   /'; FAIL=1; fi
 
-# agent-memory must never be present (recursive)
-am="$(find . -path ./.git -prune -o -iname '*agent-memory*' -print 2>/dev/null | grep -i agent-memory)"
+# agent-memory must never be present (recursive). Prune .git and .claude: both are
+# gitignored, so anything inside them can never be committed; the authoritative
+# protection against a *tracked* agent-memory is the git ls-files check below.
+am="$(find . \( -path ./.git -o -name .claude \) -prune -o -iname '*agent-memory*' -print 2>/dev/null | grep -i agent-memory)"
 if [ -n "$am" ]; then echo "BLOCKED [agent-memory present]"; printf '%s\n' "$am" | sed 's/^/   /'; FAIL=1; fi
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   tracked="$(git ls-files | grep -i agent-memory)"

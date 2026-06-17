@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>FunLead Recorder necesita grabar la pantalla para crear tus vídeos.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>FunLead Recorder necesita el micrófono para grabar tu voz en los vídeos.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>FunLead Recorder usa la cámara para mostrar tu vídeo en la ventana flotante durante la grabación.</string>
+  <!-- Deep-link scheme reserved for a future (Phase 2) flow. Declared so the OS
+       registers the scheme; no handler is wired in Phase 1 (local-only). -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>com.funlead.recorder</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>funlead-recorder</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>
