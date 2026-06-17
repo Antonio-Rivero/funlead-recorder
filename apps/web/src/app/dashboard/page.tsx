@@ -4,6 +4,7 @@ import { isOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LogoutButton } from "./LogoutButton";
 import UploadRecording from "@/components/recordings/UploadRecording";
+import { Recorder } from "@/components/recordings/Recorder";
 
 // Reads the DB at request time, never at build.
 export const dynamic = "force-dynamic";
@@ -45,8 +46,24 @@ export default async function DashboardPage() {
         <LogoutButton />
       </header>
 
-      <div className="mb-8">
-        <UploadRecording />
+      <div className="mb-8 space-y-4">
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+          <h2 className="text-sm font-semibold text-[var(--color-navy)]">Record in your browser</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Capture your screen, camera or both — no install needed.
+          </p>
+          <div className="mt-2">
+            <Recorder />
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+          <h2 className="text-sm font-semibold text-[var(--color-navy)]">Upload a file</h2>
+          <p className="mt-1 mb-3 text-sm text-slate-500">
+            Already have a video? Drop a .webm or .mp4 here.
+          </p>
+          <UploadRecording />
+        </section>
       </div>
 
       {recordings.length === 0 ? (

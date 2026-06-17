@@ -1,10 +1,20 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { isOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateViews, buildRetentionCurve, type ViewRow } from "@/lib/recordings/analytics";
 import RetentionChart from "@/components/recordings/RetentionChart";
 import StatCountUp from "@/components/recordings/StatCountUp";
+import RecordingSettingsForm from "@/components/recordings/RecordingSettingsForm";
+import CommentsInbox from "@/components/recordings/CommentsInbox";
+
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 // Reads the DB at request time, never at build.
 export const dynamic = "force-dynamic";
@@ -42,9 +52,20 @@ export default async function RecordingDetailPage({
       ctaClicks: true,
       status: true,
       createdAt: true,
+      description: true,
+      ctaLabel: true,
+      ctaUrl: true,
+      endCardTitle: true,
+      endCardCtaLabel: true,
+      endCardCtaUrl: true,
+      expiresAt: true,
+      disabledAt: true,
+      passwordHash: true,
     },
   });
   if (!recording) notFound();
+
+  const shareOrigin = await requestOrigin();
 
   // Ordered by recency so aggregateViews picks the most recent geo per viewer.
   const views = await prisma.recordingView.findMany({
@@ -167,6 +188,30 @@ export default async function RecordingDetailPage({
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mt-8">
+        <RecordingSettingsForm
+          shareOrigin={shareOrigin}
+          recording={{
+            id: recording.id,
+            shareToken: recording.shareToken,
+            title: recording.title,
+            description: recording.description,
+            ctaLabel: recording.ctaLabel,
+            ctaUrl: recording.ctaUrl,
+            endCardTitle: recording.endCardTitle,
+            endCardCtaLabel: recording.endCardCtaLabel,
+            endCardCtaUrl: recording.endCardCtaUrl,
+            expiresAt: recording.expiresAt ? recording.expiresAt.toISOString() : null,
+            disabledAt: recording.disabledAt ? recording.disabledAt.toISOString() : null,
+            hasPassword: recording.passwordHash != null,
+          }}
+        />
+      </section>
+
+      <section className="mt-8">
+        <CommentsInbox recordingId={recording.id} />
       </section>
     </main>
   );
