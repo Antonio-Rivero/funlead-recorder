@@ -65,10 +65,10 @@ const frame = z.object({
   shadow: shadow.optional(),
 });
 
-const range = (extra: z.ZodRawShape) =>
+const range = <T extends z.ZodRawShape>(extra: T) =>
   z
     .object({ t0: z.number().min(0), t1: z.number().min(0), ...extra })
-    .refine((r) => r.t1 > r.t0, "t1 must be greater than t0");
+    .refine((r) => r.t1 != null && r.t0 != null && r.t1 > r.t0, "t1 must be greater than t0");
 
 const trim = range({});
 const speed = range({ factor: z.number().min(0.25).max(4.0) });
