@@ -47,7 +47,6 @@ PATTERNS=(
   "s@@@crm-auth:tokenHash@@@tokenHash"
   # (6) forbidden network (must not exist in Phase 1, local-only)
   "s@@@net:crm-api@@@/api/grabaciones"
-  "s@@@net:vercel-blob-pkg@@@@vercel/blob"
   "s@@@net:old-deeplink@@@funlead-recording://"
 )
 
@@ -62,6 +61,13 @@ done
 ENV2="(DATABASE_URL|NEXTAUTH_SECRET|AUTH_SECRET|BLOB_READ_WRITE_TOKEN|FUNLEAD_INTERNAL_API_TOKEN|LUPA_[A-Z_]+|ENCRYPTION_KEY|OPENAI_API_KEY|STRIPE_SECRET_KEY|RESEND_API_KEY|APIFY_TOKEN|VERCEL_TOKEN|SENTRY_AUTH_TOKEN|CRON_SECRET|RECORDING_OWNER_PASSWORD|RECORDING_GATE_COOKIE_SECRET)[[:space:]]*[:=][[:space:]]*[^[:space:]]"
 m="$(grep -rEnI "${EXCLUDES[@]}" -e "$ENV2" . 2>/dev/null | grep -vE "process\.env|import\.meta\.env|\.env\.example:")"
 if [ -n "$m" ]; then echo "BLOCKED [env:literal-secret-value]"; printf '%s\n' "$m" | sed 's/^/   /'; FAIL=1; fi
+
+# (6b) zero-network is a DESKTOP requirement: @vercel/blob must not appear under apps/desktop.
+# The web server (apps/web) legitimately uses @vercel/blob for storage, so it is allowed there.
+if [ -d apps/desktop ]; then
+  db="$(grep -rEnI "${EXCLUDES[@]}" -e "@vercel/blob" apps/desktop 2>/dev/null)"
+  if [ -n "$db" ]; then echo "BLOCKED [net:vercel-blob in desktop (must be local-only)]"; printf '%s\n' "$db" | sed 's/^/   /'; FAIL=1; fi
+fi
 
 # agent-memory must never be present (recursive). Prune .git and .claude: both are
 # gitignored, so anything inside them can never be committed; the authoritative
