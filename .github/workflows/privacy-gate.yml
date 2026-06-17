@@ -1,0 +1,20 @@
+name: privacy-gate
+on:
+  push:
+  pull_request:
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: secret-scan (customer/infra/CRM-auth/forbidden-net)
+        run: bash scripts/secret-scan.sh
+      - name: no agent-memory tracked
+        run: |
+          if git ls-files | grep -i agent-memory; then
+            echo "agent-memory file is tracked"; exit 1
+          fi
+      - name: gitleaks (generic secrets)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
