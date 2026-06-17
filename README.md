@@ -38,7 +38,7 @@ account required to use it.
 Requirements: Node 18+, Bun (or pnpm), Rust 1.85+, Tauri v2 CLI.
 
 ```bash
-git clone https://github.com/antoriv123/funlead-recorder.git
+git clone https://github.com/Antonio-Rivero/funlead-recorder.git
 cd funlead-recorder
 bun install
 cd apps/desktop && bun run tauri dev   # (available once Phase 1 lands)
