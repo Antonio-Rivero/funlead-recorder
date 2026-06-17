@@ -3,6 +3,7 @@ mod camera;
 mod controls;
 mod ffmpeg;
 mod recorder;
+mod render;
 
 use std::path::PathBuf;
 
@@ -199,6 +200,7 @@ pub fn run() {
             pause_recording,
             resume_recording,
             trim_recording,
+            render::render_video,
             toggle_camera_window,
             is_camera_window_open,
             show_controls_window,
