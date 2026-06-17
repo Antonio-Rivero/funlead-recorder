@@ -1,0 +1,25 @@
+# deps
+node_modules/
+.pnp.*
+# build
+dist/
+.next/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+*.app
+*.dmg
+# bundled ffmpeg (downloaded at build time, never committed)
+apps/desktop/src-tauri/bin/ffmpeg*
+# env / secrets
+.env
+.env.*
+!.env.example
+# recordings / media artifacts
+*.mp4
+*.webm
+*.mov
+*.wav
+*.gif
+# os / editor / agents
+.DS_Store
+**/.claude/

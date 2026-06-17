@@ -1,0 +1,14 @@
+# FunLead Recorder — gitleaks config
+# Uses the default ruleset; allowlists ONLY exact brand strings (never querystrings/URLs
+# with embedded tokens, so a token in a funlead.app URL is still caught).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow exact brand strings only"
+regexes = [
+  '''funlead\.app''',
+  '''funlead-recorder://''',
+  '''com\.funlead\.recorder''',
+  '''public\.blob\.vercel-storage\.com''',
+]

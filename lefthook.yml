@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: false
+  commands:
+    secret-scan:
+      run: bash scripts/secret-scan.sh
+    gitleaks:
+      run: gitleaks detect --config .gitleaks.toml --no-git --redact

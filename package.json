@@ -1,0 +1,13 @@
+{
+  "name": "funlead-recorder",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "FunLead Recorder — open-source screen recorder. Record, edit and share — local-first.",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "scan": "bash scripts/secret-scan.sh",
+    "dev": "echo \"(Phase 1) cd apps/desktop && bun run tauri dev\"",
+    "build": "echo \"(Phase 1) cd apps/desktop && bun run tauri build\""
+  }
+}
