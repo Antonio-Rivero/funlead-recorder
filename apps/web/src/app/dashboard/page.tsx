@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isOwner } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LogoutButton } from "./LogoutButton";
+import UploadRecording from "@/components/recordings/UploadRecording";
 
 // Reads the DB at request time, never at build.
 export const dynamic = "force-dynamic";
@@ -43,6 +45,10 @@ export default async function DashboardPage() {
         <LogoutButton />
       </header>
 
+      <div className="mb-8">
+        <UploadRecording />
+      </div>
+
       {recordings.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <h2 className="text-lg font-medium text-[var(--color-navy)]">No recordings yet</h2>
@@ -54,19 +60,24 @@ export default async function DashboardPage() {
       ) : (
         <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
           {recordings.map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-4 px-5 py-4">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-[var(--color-navy)]">{r.title}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {new Date(r.createdAt).toLocaleDateString()} · {formatDuration(r.durationSec)}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-4 text-sm text-slate-600">
-                <span className="tabular-nums">{r.viewCount} views</span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs capitalize">
-                  {r.status}
-                </span>
-              </div>
+            <li key={r.id}>
+              <Link
+                href={`/dashboard/${r.id}`}
+                className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-[var(--color-navy)]">{r.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {new Date(r.createdAt).toLocaleDateString()} · {formatDuration(r.durationSec)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-4 text-sm text-slate-600">
+                  <span className="tabular-nums">{r.viewCount} views</span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs capitalize">
+                    {r.status}
+                  </span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

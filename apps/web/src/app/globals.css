@@ -7,9 +7,19 @@
 
 :root {
   color-scheme: light;
+
+  /* Shared tokens used by the viewer + analytics components (FunLead navy/sky). */
+  --background: #f8fafc;
+  --foreground: #1e3a5f;
+  --card: #ffffff;
+  --card-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --primary: #1e3a5f;
+  --danger: #dc2626;
 }
 
 body {
-  background: #f8fafc;
-  color: #1e3a5f;
+  background: var(--background);
+  color: var(--foreground);
 }
