@@ -5,6 +5,7 @@ mod ffmpeg;
 mod project;
 mod recorder;
 mod render;
+mod transcribe;
 
 use std::path::PathBuf;
 
@@ -202,7 +203,9 @@ pub fn run() {
             resume_recording,
             trim_recording,
             render::render_video,
+            transcribe::transcribe_recording,
             project::save_project,
+            project::save_transcript,
             project::open_project,
             project::list_projects,
             toggle_camera_window,

@@ -12,6 +12,9 @@ apps/desktop/src-tauri/gen/
 *.dmg
 # bundled ffmpeg (downloaded at build time, never committed)
 apps/desktop/src-tauri/bin/ffmpeg*
+# bundled whisper.cpp binary + GGML models (fetched at build time, never committed)
+apps/desktop/src-tauri/bin/whisper-cli*
+apps/desktop/src-tauri/bin/models/*.bin
 # env / secrets
 .env
 .env.*

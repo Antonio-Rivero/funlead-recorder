@@ -9,7 +9,7 @@ export type StopResult = { path: string; mic_warning: string | null };
 export type PermissionStatus = "granted" | "denied" | "unsupported";
 export type Quality = "auto" | "720" | "1080";
 
-export type ProjectDoc = { raw_path: string; manifest: EditManifest };
+export type ProjectDoc = { raw_path: string; manifest: EditManifest; transcript?: string | null };
 export type ProjectInfo = { name: string; raw_path: string };
 
 export const listDisplays = () => invoke<DisplayInfo[]>("list_displays");
@@ -47,3 +47,9 @@ export const saveProject = (name: string, rawPath: string, manifest: EditManifes
   invoke<void>("save_project", { name, rawPath, manifest });
 export const openProject = (name: string) => invoke<ProjectDoc>("open_project", { name });
 export const listProjects = () => invoke<ProjectInfo[]>("list_projects");
+
+/** Transcribes a recording locally with whisper.cpp. `lang` = ISO code (e.g. "es") or null for auto-detect. */
+export const transcribeRecording = (rawPath: string, lang: string | null) =>
+  invoke<string>("transcribe_recording", { rawPath, lang });
+export const saveTranscript = (name: string, rawPath: string, transcript: string) =>
+  invoke<void>("save_transcript", { name, rawPath, transcript });

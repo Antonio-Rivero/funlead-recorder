@@ -55,6 +55,10 @@ bun install
 # Fetch a static ffmpeg used for local export (or just: brew install ffmpeg)
 bash scripts/fetch-ffmpeg.sh
 
+# Optional: local transcription (whisper.cpp). Fetches the CLI + a model.
+# Or on macOS: brew install whisper-cpp  (then: bash scripts/fetch-whisper.sh --model-only)
+bash scripts/fetch-whisper.sh
+
 # Run from source:
 cd apps/desktop && bun run tauri dev
 

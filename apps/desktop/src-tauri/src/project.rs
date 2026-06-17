@@ -14,10 +14,14 @@ use serde_json::Value;
 
 /// On-disk project document. `raw_path` points at the original recording in
 /// `~/Movies/FunLead/`; `manifest` is the edit manifest as opaque JSON.
+/// `transcript` is the locally-generated whisper.cpp text, ready to travel when
+/// "upload to my server" is implemented; absent on older project files.
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub raw_path: String,
     pub manifest: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transcript: Option<String>,
 }
 
 /// Summary row for the "open project" picker.
@@ -56,15 +60,39 @@ fn safe_file_for(dir: &Path, name: &str) -> Result<PathBuf, String> {
     Ok(dir.join(format!("{trimmed}.funlead.json")))
 }
 
-/// Persists `project` under `name`, overwriting any previous version.
+fn write_project(file: &Path, project: &Project) -> Result<(), String> {
+    let body = serde_json::to_vec_pretty(project)
+        .map_err(|e| format!("No se pudo serializar el proyecto: {e}"))?;
+    std::fs::write(file, body).map_err(|e| format!("No se pudo guardar el proyecto: {e}"))
+}
+
+/// Persists `project` under `name`, overwriting the manifest/raw_path while
+/// preserving a previously-saved transcript (the editor's autosave doesn't carry
+/// it, so a manifest save must not wipe the transcript).
 #[tauri::command]
 pub fn save_project(name: String, raw_path: String, manifest: Value) -> Result<(), String> {
     let dir = projects_dir()?;
     let file = safe_file_for(&dir, &name)?;
-    let project = Project { raw_path, manifest };
-    let body = serde_json::to_vec_pretty(&project)
-        .map_err(|e| format!("No se pudo serializar el proyecto: {e}"))?;
-    std::fs::write(&file, body).map_err(|e| format!("No se pudo guardar el proyecto: {e}"))
+    let transcript = std::fs::read(&file)
+        .ok()
+        .and_then(|b| serde_json::from_slice::<Project>(&b).ok())
+        .and_then(|p| p.transcript);
+    write_project(&file, &Project { raw_path, manifest, transcript })
+}
+
+/// Stores the locally-generated transcript on the project, keeping its manifest.
+/// Creates the project (with an empty manifest) if it doesn't exist yet — a
+/// recording can be transcribed straight from the preview, before any edit.
+#[tauri::command]
+pub fn save_transcript(name: String, raw_path: String, transcript: String) -> Result<(), String> {
+    let dir = projects_dir()?;
+    let file = safe_file_for(&dir, &name)?;
+    let manifest = std::fs::read(&file)
+        .ok()
+        .and_then(|b| serde_json::from_slice::<Project>(&b).ok())
+        .map(|p| p.manifest)
+        .unwrap_or(Value::Null);
+    write_project(&file, &Project { raw_path, manifest, transcript: Some(transcript) })
 }
 
 /// Loads the project stored under `name`.

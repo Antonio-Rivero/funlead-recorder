@@ -138,6 +138,19 @@ video {
   display: block;
 }
 
+.transcript {
+  width: 100%;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+}
+
 .progress {
   width: 100%;
   height: 8px;

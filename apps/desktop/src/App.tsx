@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { listen } from "@tauri-apps/api/event";
 import { Editor, type EditManifest } from "@funlead-recorder/editor";
 import "./app.css";
 import { BRAND } from "./branding";
@@ -15,10 +16,12 @@ import {
   listProjects,
   openProject,
   requestPermission,
+  saveTranscript,
   showControls,
   startRecording,
   stopRecording,
   toggleCamera,
+  transcribeRecording,
   type DisplayInfo,
   type InputDeviceInfo,
   type PermissionStatus,
@@ -386,6 +389,95 @@ function Preview({
           </button>
         </div>
       </div>
+
+      <Transcribe rawPath={rawPath} projectName={projectName} />
+    </div>
+  );
+}
+
+// --- Transcribe: local whisper.cpp transcription (FR-107). -------------------
+
+const LANGUAGES: { value: string; label: string }[] = [
+  { value: "", label: "Detectar idioma" },
+  { value: "es", label: "Español" },
+  { value: "en", label: "Inglés" },
+];
+
+function Transcribe({ rawPath, projectName }: { rawPath: string; projectName: string }) {
+  const [lang, setLang] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const runningRef = useRef(false);
+
+  // Live progress (0..100) while a transcription runs.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    void listen<number>("transcribe-progress", (e) => {
+      if (!runningRef.current) return;
+      const pct = typeof e.payload === "number" ? e.payload : 0;
+      setProgress(Math.max(0, Math.min(100, pct)));
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  const onTranscribe = useCallback(async () => {
+    setError(null);
+    setText(null);
+    setProgress(0);
+    setBusy(true);
+    runningRef.current = true;
+    try {
+      const result = await transcribeRecording(rawPath, lang === "" ? null : lang);
+      setText(result);
+      await saveTranscript(projectName, rawPath, result).catch(() => {});
+    } catch (e) {
+      setError(typeof e === "string" ? e : "No se pudo transcribir.");
+    } finally {
+      runningRef.current = false;
+      setBusy(false);
+    }
+  }, [rawPath, projectName, lang]);
+
+  return (
+    <div className="card stack">
+      <span className="field__label">Transcripción (local, sin nube)</span>
+      <div className="row">
+        <select value={lang} onChange={(e) => setLang(e.target.value)} disabled={busy}>
+          {LANGUAGES.map((l) => (
+            <option key={l.value} value={l.value}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        <div className="app__spacer" />
+        <button className="btn btn--primary" onClick={onTranscribe} disabled={busy}>
+          {busy ? "Transcribiendo…" : "Transcribir"}
+        </button>
+      </div>
+
+      {busy && (
+        <div className="progress">
+          <div className="progress__bar" style={{ width: `${progress}%` }} />
+        </div>
+      )}
+
+      {text !== null && (
+        <textarea
+          className="transcript"
+          value={text}
+          readOnly
+          rows={6}
+          aria-label="Transcripción"
+        />
+      )}
+
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }
