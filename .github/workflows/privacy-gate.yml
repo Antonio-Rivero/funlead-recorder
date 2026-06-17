@@ -7,14 +7,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: secret-scan (customer/infra/CRM-auth/forbidden-net)
+      - name: secret-scan (customer / infra / CRM-auth / forbidden-net)
         run: bash scripts/secret-scan.sh
       - name: no agent-memory tracked
         run: |
-          if git ls-files | grep -i agent-memory; then
+          if git ls-files | grep -qi agent-memory; then
             echo "agent-memory file is tracked"; exit 1
           fi
-      - name: gitleaks (generic secrets)
-        uses: gitleaks/gitleaks-action@v2
+          echo "ok: no agent-memory tracked"
+      - name: gitleaks (generic secrets — free OSS binary, no Action license)
         env:
-          GITLEAKS_CONFIG: .gitleaks.toml
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          url=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep -oE 'https://[^"]*linux_x64\.tar\.gz' | head -1)
+          echo "gitleaks asset: $url"
+          curl -fsSL "$url" -o gitleaks.tgz
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks detect --config .gitleaks.toml --no-git --redact
