@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # FunLead Recorder — privacy gate.
-# Blocks secrets, customer/identity data, internal infra, internal CRM-auth symbols,
-# and forbidden network calls. NEVER blocks the FunLead brand (funlead.app etc).
-# Complements gitleaks (which covers generic token shapes); see CONTRIBUTING.md.
+# Blocks secret-shaped tokens, generic personal data, and forbidden network calls.
+# NEVER blocks the FunLead brand (funlead.app etc). Complements gitleaks (which
+# covers generic token shapes); see CONTRIBUTING.md.
+#
+# Project-specific private patterns (real client names, signing identities, internal
+# repos/hosts, private backend symbols) are NOT hardcoded here — publishing them would
+# leak exactly what this gate protects. They load at runtime from an UNVERSIONED file
+# (default: .private-secret-patterns at the repo root, gitignored), or from the path in
+# $PRIVATE_PATTERNS_FILE. See .private-secret-patterns.example for the format.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 FAIL=0
-EXCLUDES=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist
+PRIVATE_PATTERNS_FILE="${PRIVATE_PATTERNS_FILE:-.private-secret-patterns}"
+EXCLUDES=(--exclude-dir=.git --exclude=.git --exclude-dir=node_modules --exclude-dir=dist
   --exclude-dir=target --exclude-dir=gen --exclude-dir=.next --exclude-dir=.claude
-  --exclude=secret-scan.sh --exclude=.gitleaks.toml)
+  --exclude=secret-scan.sh --exclude=.gitleaks.toml
+  --exclude=.private-secret-patterns --exclude=.private-secret-patterns.example)
 
 # entries: flag@@@label@@@regex   (flag: i=case-insensitive, s=case-sensitive)
 PATTERNS=(
@@ -25,30 +33,26 @@ PATTERNS=(
   "s@@@token:github-pat@@@ghp_[A-Za-z0-9]{20,}"
   "s@@@token:slack@@@xox[baprs]-[A-Za-z0-9-]{6,}"
   "s@@@token:private-key@@@-----BEGIN [A-Z ]*PRIVATE KEY-----"
-  # (3) customer / identity / personal
-  "i@@@client:yoluzon@@@yoluzon"
-  "i@@@client:familia-formacion@@@familia y formaci"
+  # (3) generic personal data shapes (no specific person hardcoded)
   "s@@@identity:icloud@@@@icloud\.com"
   "s@@@identity:gmail@@@@gmail\.com"
-  "s@@@identity:appleteam@@@FQ9CY9VPBW"
-  "s@@@identity:userpath@@@/Users/antonioriverotoledo"
-  "s@@@origin:crm-repo@@@antoriv123/crm-visiona"
-  "s@@@origin:yoom-repo@@@antoriv123/yoom-desktop"
-  "i@@@brand-leak:yoom@@@\byoom\b"
-  "i@@@origin:crm-visiona@@@crm-visiona"
-  # (4) internal infrastructure
+  # (4) generic internal-infra shapes (no specific host hardcoded)
   "i@@@infra:tailscale@@@tail[0-9a-z]+\.ts\.net"
-  "i@@@infra:imac@@@oficina-imac"
-  # (5) internal CRM auth architecture
-  "s@@@crm-auth:getSessionOrgOrToken@@@getSessionOrgOrToken"
-  "s@@@crm-auth:getApiTokenOrg@@@getApiTokenOrg"
-  "s@@@crm-auth:api-token-auth@@@api-token-auth"
-  "s@@@crm-auth:ApiTokensSection@@@ApiTokensSection"
-  "s@@@crm-auth:tokenHash@@@tokenHash"
-  # (6) forbidden network (must not exist in Phase 1, local-only)
-  "s@@@net:crm-api@@@/api/grabaciones"
+  # (6) forbidden network — the desktop app is local-only (no telemetry / no phone-home)
   "s@@@net:old-deeplink@@@funlead-recording://"
 )
+
+# Load project-specific PRIVATE patterns from the unversioned file, if present.
+# Same `flag@@@label@@@regex` format, one per line; blank lines and #comments ignored.
+if [ -f "$PRIVATE_PATTERNS_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|\#*) continue ;; esac
+    PATTERNS+=("$line")
+  done < "$PRIVATE_PATTERNS_FILE"
+  echo "secret-scan: loaded private patterns from $PRIVATE_PATTERNS_FILE"
+else
+  echo "secret-scan: no $PRIVATE_PATTERNS_FILE (generic rules only — expected on public clones)"
+fi
 
 for entry in "${PATTERNS[@]}"; do
   flag="${entry%%@@@*}"; rest="${entry#*@@@}"; label="${rest%%@@@*}"; re="${rest#*@@@}"
@@ -80,7 +84,7 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 if [ "$FAIL" -eq 0 ]; then
-  echo "secret-scan: OK (brand FunLead allowed; no secrets/customer/infra/CRM-auth/forbidden-net found)"
+  echo "secret-scan: OK (brand FunLead allowed; no secrets/personal/infra/forbidden-net found)"
   exit 0
 else
   echo "secret-scan: FAILED — fix the lines above before committing/pushing."

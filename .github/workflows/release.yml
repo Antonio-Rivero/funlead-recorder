@@ -2,6 +2,11 @@ name: release
 # Builds downloadable desktop binaries so anyone can install without a toolchain.
 # Runs on GitHub's own macOS runners (no maintainer infrastructure involved).
 # Creates a DRAFT release — a human verifies a real recording before publishing.
+#
+# Supply chain: third-party Actions are pinned to a full commit SHA (the trailing
+# comment is the human-readable tag), so a moving tag can't swap the code under us.
+# The bundled ffmpeg is downloaded by scripts/fetch-ffmpeg.sh, which pins an exact
+# release and verifies its SHA256 before use.
 on:
   push:
     tags: ["v*"]
@@ -22,17 +27,18 @@ jobs:
             target: x86_64-apple-darwin
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # stable
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
       - name: Install deps
         run: bun install
-      - name: Fetch static ffmpeg (bundled into the app)
+      - name: Fetch static ffmpeg (pinned + SHA256-verified, bundled into the app)
         run: bash scripts/fetch-ffmpeg.sh
       - name: Build + draft release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -42,10 +48,15 @@ jobs:
           releaseName: "FunLead Recorder ${{ github.ref_type == 'tag' && github.ref_name || github.run_number }}"
           releaseDraft: true
           prerelease: false
-# Notes:
-# - Binaries are UNSIGNED (no Apple cert needed; users right-click → Open the first time,
-#   or run: xattr -dr com.apple.quarantine "FunLead Recorder.app").
-#   Signing/notarization is optional and only needs the maintainer's cert if ever desired.
+# What is NOT signed / notarized (by design — no Apple Developer cert required):
+# - The .app and its binaries are UNSIGNED and NOT notarized. On first launch macOS
+#   Gatekeeper warns; users right-click → Open, or run:
+#     xattr -dr com.apple.quarantine "FunLead Recorder.app"
+# - The GitHub Release itself is not GPG-signed and binaries have no detached signatures.
+#   Integrity rests on HTTPS + the draft-then-human-verify step before publishing.
+# - To sign/notarize later, add the maintainer's Apple cert + APPLE_* secrets and the
+#   tauri-action signing inputs; nothing else in this pipeline needs to change.
+# Other notes:
 # - Transcription's whisper.cpp is NOT bundled (keeps the download small); install via
 #   `brew install whisper-cpp` or scripts/fetch-whisper.sh. ffmpeg IS bundled.
 # - Windows/Linux can be added to the matrix later (capture is cross-platform; the

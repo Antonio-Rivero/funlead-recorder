@@ -3,7 +3,7 @@
  * No video watermark, no intrusive banner: a tasteful signature with two links
  * (the open-source repo and funlead.app). Value first, brand as a signature.
  */
-const REPO_URL = "https://github.com/antoriv123/funlead-recorder";
+const REPO_URL = "https://github.com/Antonio-Rivero/funlead-recorder";
 const FUNLEAD_URL = "https://funlead.app";
 
 export default function FunLeadFooter() {

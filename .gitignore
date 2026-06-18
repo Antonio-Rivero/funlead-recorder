@@ -28,3 +28,6 @@ apps/desktop/src-tauri/bin/models/*.bin
 # os / editor / agents
 .DS_Store
 **/.claude/
+# local private scan patterns (real client/identity/infra strings) — never commit
+# (the tracked .private-secret-patterns.example documents the format)
+.private-secret-patterns
