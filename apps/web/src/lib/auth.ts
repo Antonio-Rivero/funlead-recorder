@@ -67,3 +67,16 @@ export async function isOwner(): Promise<boolean> {
   const store = await cookies();
   return isValidSessionToken(store.get(OWNER_COOKIE)?.value);
 }
+
+// Desktop app auth (Fase 2): the native recorder has no owner cookie, so it
+// authenticates with a shared bearer token the user sets as RECORDING_DESKTOP_TOKEN
+// in their self-hosted instance and pastes into the app. Disabled (always false)
+// until that env var is set, so it adds no surface on instances that don't use it.
+export function isValidDesktopToken(authorizationHeader: string | null | undefined): boolean {
+  const expected = process.env.RECORDING_DESKTOP_TOKEN;
+  if (!expected) return false;
+  const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader ?? "");
+  const token = match?.[1];
+  if (!token) return false;
+  return safeEqual(token, expected);
+}

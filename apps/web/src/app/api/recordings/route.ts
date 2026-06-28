@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireOwner } from "@/lib/guard";
+import { requireOwner, requireOwnerOrDesktop } from "@/lib/guard";
 import { newShareToken } from "@/lib/tokens";
 import { isAllowedRecordingBlobReference } from "@/lib/blob-url";
 
@@ -34,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const denied = await requireOwner();
+  const denied = await requireOwnerOrDesktop(request);
   if (denied) return denied;
 
   let body: unknown;

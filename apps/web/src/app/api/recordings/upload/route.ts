@@ -10,7 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { isOwner } from "@/lib/auth";
+import { isOwner, isValidDesktopToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
       request,
       body,
       onBeforeGenerateToken: async () => {
-        if (!(await isOwner())) throw new Error("Unauthorized");
+        const ok =
+          (await isOwner()) ||
+          isValidDesktopToken(request.headers.get("authorization"));
+        if (!ok) throw new Error("Unauthorized");
         return {
           allowedContentTypes: ["video/webm", "video/mp4"],
           addRandomSuffix: false,
