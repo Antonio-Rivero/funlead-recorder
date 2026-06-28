@@ -39,8 +39,8 @@ usuario). Sin secretos ni datos de clientes.
       verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
 - [~] Fase 3 — paridad de ajustes:
       - [x] cuenta atrás 3-2-1 (settings.countdownEnabled + overlay + toggle). commit.
-      - [ ] toggle de espejo de cámara (mirror): hoy hardcoded true; pasarlo por URL
-            param a camera.html (localStorage NO se comparte entre webviews) + toggle.
+      - [x] toggle de espejo de cámara (mirror): vía eventos Tauri (camera:set-mirror,
+            ref anti-stale), no URL param. settings.cameraMirror + toggle. commit.
       - [ ] showTimer / otros ajustes que falten de yoom.
 - [ ] Fase 4 — jubilar yoom-desktop cuando el OSS tenga paridad.
 
