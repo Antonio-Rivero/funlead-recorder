@@ -341,10 +341,8 @@ fn probe(app: &AppHandle, data_dir: &Path, input: &str) -> Result<Probe, String>
                     has_audio = true;
                 }
             }
-            FfmpegEvent::ParsedDuration(d) => {
-                if duration == 0.0 {
-                    duration = d.duration;
-                }
+            FfmpegEvent::ParsedDuration(d) if duration == 0.0 => {
+                duration = d.duration;
             }
             _ => {}
         }
@@ -464,6 +462,7 @@ fn make_round_mask(app: &AppHandle, data_dir: &Path, vw: u32, vh: u32, radius: i
     Ok(mask)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_shadow_png(
     app: &AppHandle,
     data_dir: &Path,
