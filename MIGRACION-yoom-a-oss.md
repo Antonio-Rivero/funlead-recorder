@@ -27,10 +27,12 @@ usuario). Sin secretos ni datos de clientes.
             Bearer en /api/recordings (POST) y /api/recordings/upload (handshake),
             vía guard requireOwnerOrDesktop + isValidDesktopToken (timing-safe,
             env-gated, aditivo). tsc verde. commit 63e94ff.
-      - [ ] 2b (desktop): settings (AÑADIR plugin-store al OSS: baseUrl de la
-            instancia + token) + upload.ts (Bearer, endpoints /api/recordings +
-            /api/recordings/upload, con el fix red-vs-token + reintento) + UI de
-            subir en App.tsx (tras grabar/editar → subir → mostrar link /v/<token>).
+      - [~] 2b (desktop):
+            - [x] 2b-i: settings.ts (localStorage, NO plugin-store: dos strings) con
+                  baseUrl+token + panel "Conexión" en el setup. Build verde. commit.
+            - [ ] 2b-ii: añadir dep @vercel/blob + upload.ts (Bearer, endpoints
+                  /api/recordings + /upload, fix red-vs-token + reintento) + botón
+                  "Subir" en Preview (rawPath) → mostrar link /v/<token>.
       NOTA tooling: el `next lint` del OSS web está roto (Invalid project directory);
       verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
 - [ ] Fase 3 — paridad de ajustes: cuenta atrás, mirror, showTimer, calidad (ya),
