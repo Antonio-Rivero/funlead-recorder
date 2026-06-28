@@ -22,7 +22,7 @@ usuario). Sin secretos ni datos de clientes.
       - [x] 1b: selección de cámara en App.tsx (enumerar videoinput, dropdown,
             cambio close+reopen, listener camera:error, toggle con deviceId). commit.
             Pendiente menor: control del blur por EV_SET_BLUR (toggle en UI) → Fase 3.
-- [~] Fase 2 — subida self-host (auth por token, decidido por Antonio):
+- [x] Fase 2 — subida self-host (COMPLETA: token web + conexión + subida + botón):
       - [x] 2a (web): nuevo RECORDING_DESKTOP_TOKEN aceptado como Authorization:
             Bearer en /api/recordings (POST) y /api/recordings/upload (handshake),
             vía guard requireOwnerOrDesktop + isValidDesktopToken (timing-safe,
@@ -33,8 +33,8 @@ usuario). Sin secretos ni datos de clientes.
             - [x] 2b-ii (lógica): @vercel/blob añadido (bun) + upload.ts (Bearer,
                   /api/recordings + /upload, fix red-vs-token + reintento, link
                   /v/<token>). Build verde. commit.
-            - [ ] 2b-iii (UI): botón "Subir a mi instancia" en Preview (rawPath) que
-                  llama uploadRecording con loadSettings() → progreso → muestra link.
+            - [x] 2b-iii (UI): botón "Subir a mi instancia" en Preview → progreso →
+                  link /v/<token> copiable + errores. Build verde. commit.
       NOTA tooling: el `next lint` del OSS web está roto (Invalid project directory);
       verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
 - [ ] Fase 3 — paridad de ajustes: cuenta atrás, mirror, showTimer, calidad (ya),
