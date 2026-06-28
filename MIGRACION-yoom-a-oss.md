@@ -30,9 +30,11 @@ usuario). Sin secretos ni datos de clientes.
       - [~] 2b (desktop):
             - [x] 2b-i: settings.ts (localStorage, NO plugin-store: dos strings) con
                   baseUrl+token + panel "Conexión" en el setup. Build verde. commit.
-            - [ ] 2b-ii: añadir dep @vercel/blob + upload.ts (Bearer, endpoints
-                  /api/recordings + /upload, fix red-vs-token + reintento) + botón
-                  "Subir" en Preview (rawPath) → mostrar link /v/<token>.
+            - [x] 2b-ii (lógica): @vercel/blob añadido (bun) + upload.ts (Bearer,
+                  /api/recordings + /upload, fix red-vs-token + reintento, link
+                  /v/<token>). Build verde. commit.
+            - [ ] 2b-iii (UI): botón "Subir a mi instancia" en Preview (rawPath) que
+                  llama uploadRecording con loadSettings() → progreso → muestra link.
       NOTA tooling: el `next lint` del OSS web está roto (Invalid project directory);
       verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
 - [ ] Fase 3 — paridad de ajustes: cuenta atrás, mirror, showTimer, calidad (ya),
