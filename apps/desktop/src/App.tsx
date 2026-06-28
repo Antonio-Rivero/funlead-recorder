@@ -164,6 +164,9 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
   const [micId, setMicId] = useState<string>("");
   const [quality, setQuality] = useState<Quality>("auto");
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameras, setCameras] = useState<InputDeviceInfo[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const camerasUnlockedRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,13 +191,82 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
     })();
   }, []);
 
-  const onToggleCamera = useCallback(async () => {
+  // Enumera cámaras (videoinput). `unlock` hace un getUserMedia de prueba para que
+  // el WebView revele las etiquetas reales — solo ante intención explícita de cámara,
+  // para no pedir permiso de cámara al arrancar a quien solo graba pantalla.
+  const refreshCameras = useCallback(async (unlock: boolean) => {
     try {
-      const open = await toggleCamera(null);
+      if (unlock && !camerasUnlockedRef.current) {
+        try {
+          const probe = await navigator.mediaDevices.getUserMedia({ video: true });
+          probe.getTracks().forEach((t) => t.stop());
+          camerasUnlockedRef.current = true;
+        } catch {
+          // Sin cámara o permiso denegado: usa lo que dé enumerateDevices.
+        }
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices
+        .filter((d) => d.kind === "videoinput")
+        .map((d, i) => ({ id: d.deviceId, name: d.label || `Cámara ${i + 1}` }));
+      setCameras(cams);
+    } catch {
+      // mediaDevices no disponible: lista vacía (la cámara por defecto sigue yendo).
+    }
+  }, []);
+
+  const onToggleCamera = useCallback(async () => {
+    // Abrir la burbuja es intención de cámara → revela las etiquetas reales.
+    void refreshCameras(true);
+    try {
+      const open = await toggleCamera(selectedCamera || null);
       setCameraOn(open);
     } catch (e) {
       setError(typeof e === "string" ? e : "No se pudo abrir la cámara.");
     }
+  }, [refreshCameras, selectedCamera]);
+
+  // La burbuja lee su dispositivo al abrir, así que para cambiar de cámara mientras
+  // está visible la cerramos y reabrimos con el nuevo device. La ventana se destruye
+  // de forma asíncrona, así que esperamos a que cierre antes de reabrir.
+  const waitCameraClosed = useCallback(async () => {
+    for (let i = 0; i < 20; i++) {
+      const open = await isCameraOpen().catch(() => false);
+      if (!open) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }, []);
+
+  const onSelectCamera = useCallback(
+    async (deviceId: string) => {
+      setSelectedCamera(deviceId);
+      if (!cameraOn) return;
+      setError(null);
+      try {
+        await toggleCamera(null);
+        await waitCameraClosed();
+        const open = await toggleCamera(deviceId || null);
+        setCameraOn(open);
+      } catch (e) {
+        setError(typeof e === "string" ? e : "No se pudo cambiar la cámara.");
+      }
+    },
+    [cameraOn, waitCameraClosed],
+  );
+
+  // La burbuja avisa por "camera:error" si getUserMedia falla (webcam externa
+  // ocupada o id obsoleto): quita el "On" y muestra el error aquí.
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    let cancelled = false;
+    void listen<string>("camera:error", (e) => {
+      setCameraOn(false);
+      setError(e.payload || "No se pudo abrir la cámara.");
+    }).then((fn) => (cancelled ? fn() : (un = fn)));
+    return () => {
+      cancelled = true;
+      un?.();
+    };
   }, []);
 
   const onStart = useCallback(async () => {
@@ -275,6 +347,20 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
           <button className="btn" onClick={onToggleCamera}>
             {cameraOn ? "Quitar cámara" : "Añadir cámara"}
           </button>
+          {cameraOn && cameras.length > 0 && (
+            <select
+              value={selectedCamera}
+              onMouseDown={() => void refreshCameras(true)}
+              onChange={(e) => void onSelectCamera(e.target.value)}
+            >
+              <option value="">Cámara por defecto</option>
+              {cameras.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="app__spacer" />
         </div>
 
