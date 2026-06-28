@@ -1,16 +1,18 @@
 // Persistencia local (localStorage del webview) de la conexión a la instancia
-// self-host del usuario: baseUrl + token de escritorio. Single-user, en su propia
-// máquina; no se añade el plugin-store nativo solo para dos strings.
+// self-host del usuario + preferencias de grabación. Single-user, su propia máquina;
+// no se añade el plugin-store nativo para esto.
 
 export interface RecorderSettings {
   /** Base URL de la instancia web self-host del usuario (sin barra final). */
   baseUrl: string;
   /** RECORDING_DESKTOP_TOKEN que el usuario configuró en su instancia. */
   desktopToken: string;
+  /** Cuenta atrás 3-2-1 antes de empezar a grabar. Default true. */
+  countdownEnabled: boolean;
 }
 
 const KEY = "funlead-recorder-connection";
-const DEFAULTS: RecorderSettings = { baseUrl: "", desktopToken: "" };
+const DEFAULTS: RecorderSettings = { baseUrl: "", desktopToken: "", countdownEnabled: true };
 
 export function loadSettings(): RecorderSettings {
   try {
@@ -20,6 +22,8 @@ export function loadSettings(): RecorderSettings {
     return {
       baseUrl: (parsed.baseUrl ?? "").trim(),
       desktopToken: (parsed.desktopToken ?? "").trim(),
+      countdownEnabled:
+        typeof parsed.countdownEnabled === "boolean" ? parsed.countdownEnabled : true,
     };
   } catch {
     return { ...DEFAULTS };
@@ -31,6 +35,7 @@ export function saveSettings(next: RecorderSettings): void {
     const clean: RecorderSettings = {
       baseUrl: next.baseUrl.trim().replace(/\/+$/, ""),
       desktopToken: next.desktopToken.trim(),
+      countdownEnabled: next.countdownEnabled,
     };
     localStorage.setItem(KEY, JSON.stringify(clean));
   } catch {

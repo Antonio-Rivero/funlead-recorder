@@ -182,6 +182,17 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
     });
   }, []);
 
+  // Cuenta atrás 3-2-1 en la ventana principal ANTES de arrancar scap, así el
+  // "3-2-1" nunca cae dentro del vídeo grabado.
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const runCountdown = useCallback(async () => {
+    for (let n = 3; n >= 1; n--) {
+      setCountdown(n);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    setCountdown(null);
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -290,6 +301,7 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
         await ensureFfmpeg();
         setDownloading(false);
       }
+      if (conn.countdownEnabled) await runCountdown();
       await startRecording({ displayId, fps: 30, micDeviceId: micId === "" ? null : micId, quality });
       await showControls().catch(() => {});
       setScreen({ kind: "recording" });
@@ -299,7 +311,7 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
     } finally {
       setBusy(false);
     }
-  }, [displayId, micId, quality, setScreen]);
+  }, [displayId, micId, quality, conn, runCountdown, setScreen]);
 
   const onOpenProject = useCallback(
     async (name: string) => {
@@ -315,6 +327,24 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
 
   return (
     <div className="stack">
+      {countdown !== null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 140,
+            fontWeight: 700,
+            color: "#fff",
+            background: "rgba(10,26,61,0.88)",
+            zIndex: 1000,
+          }}
+        >
+          {countdown}
+        </div>
+      )}
       <div className="card stack">
         <div className="field">
           <span className="field__label">Pantalla</span>
@@ -390,6 +420,15 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
             onChange={(e) => updateConn({ desktopToken: e.target.value })}
           />
         </details>
+
+        <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={conn.countdownEnabled}
+            onChange={(e) => updateConn({ countdownEnabled: e.target.checked })}
+          />
+          <span className="field__label">Cuenta atrás 3-2-1 antes de grabar</span>
+        </label>
 
         <button
           className="btn btn--record btn--block"
