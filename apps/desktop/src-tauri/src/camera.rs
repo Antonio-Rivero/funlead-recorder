@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
@@ -37,12 +37,70 @@ pub fn toggle(app: &AppHandle, device_id: Option<String>) -> Result<bool, String
     // Single bubble invariant: if a camera window exists this toggle hides it.
     // Reusing/closing the existing one here is what prevents the duplicate
     // ("denegado" + live) bubbles seen when the command fires twice.
-    if let Some(window) = app.get_webview_window(CAMERA_LABEL) {
-        window.close().map_err(|e| e.to_string())?;
+    if app.get_webview_window(CAMERA_LABEL).is_some() {
+        close(app)?;
         return Ok(false);
     }
 
     open(app, device_id)
+}
+
+/// Cambia la cámara de la burbuja viva SIN recrear la ventana/panel: emite un
+/// evento y deja que camera.tsx reinicie su getUserMedia. El close+reopen es el
+/// que arriesga el use-after-free (ver `close`). Sin ventana abierta = no-op.
+pub fn set_device(app: &AppHandle, device_id: Option<String>) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(CAMERA_LABEL) else {
+        return Ok(());
+    };
+    window
+        .emit("camera-device-changed", device_id)
+        .map_err(|e| e.to_string())
+}
+
+/// Cierra la burbuja de forma segura. En macOS la ventana se reclasó a NSPanel
+/// (registrado en el plugin), así que `window.close()` directo es un use-after-free
+/// (NSPanel libera el objeto con releasedWhenClosed=YES mientras el plugin aún lo
+/// referencia) -> NSException -> abort. `to_window()` es el camino seguro y debe
+/// correr en el MAIN THREAD; los comandos Tauri corren en worker -> hop a main.
+pub fn close(app: &AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let Some(_window) = app.get_webview_window(CAMERA_LABEL) else {
+            return Ok(());
+        };
+        let app = app.clone();
+        _window
+            .run_on_main_thread(move || close_panel_on_main(&app))
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(window) = app.get_webview_window(CAMERA_LABEL) {
+            window.close().map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+}
+
+/// Teardown en main thread del NSPanel reclasado. Idempotente: un segundo close no
+/// encuentra panel y es no-op. NUNCA caemos a window.close() directo en macOS si el
+/// panel sigue registrado (ese es el camino que aborta).
+#[cfg(target_os = "macos")]
+fn close_panel_on_main(app: &AppHandle) {
+    match app.get_webview_panel(CAMERA_LABEL) {
+        Ok(panel) => match panel.to_window() {
+            Some(window) => {
+                let _ = window.close();
+            }
+            None => eprintln!("camera panel deregistered before to_window() — skipping close"),
+        },
+        Err(_) => {
+            if let Some(window) = app.get_webview_window(CAMERA_LABEL) {
+                let _ = window.close();
+            }
+        }
+    }
 }
 
 /// Build the camera bubble window and turn it into a non-activating NSPanel.

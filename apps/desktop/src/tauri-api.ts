@@ -41,6 +41,8 @@ export const showControls = () => invoke<void>("show_controls_window");
 export const hideControls = () => invoke<void>("hide_controls_window");
 export const toggleCamera = (deviceId: string | null) =>
   invoke<boolean>("toggle_camera_window", { deviceId });
+export const setCameraDevice = (deviceId: string | null) =>
+  invoke<void>("set_camera_device", { deviceId });
 export const isCameraOpen = () => invoke<boolean>("is_camera_window_open");
 
 export const saveProject = (name: string, rawPath: string, manifest: EditManifest) =>

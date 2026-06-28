@@ -130,6 +130,11 @@ fn is_camera_window_open(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
+fn set_camera_device(app: AppHandle, device_id: Option<String>) -> Result<(), String> {
+    camera::set_device(&app, device_id)
+}
+
+#[tauri::command]
 fn show_controls_window(app: AppHandle) -> Result<(), String> {
     controls::show(&app)
 }
@@ -210,6 +215,7 @@ pub fn run() {
             project::list_projects,
             toggle_camera_window,
             is_camera_window_open,
+            set_camera_device,
             show_controls_window,
             hide_controls_window,
             is_controls_window_open

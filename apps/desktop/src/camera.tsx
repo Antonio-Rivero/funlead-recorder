@@ -93,6 +93,10 @@ async function createSegmenter(): Promise<MPImageSegmenter> {
 
 function CameraBubble() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Active camera stream + monotonic token: switching cameras restarts getUserMedia
+  // in place (no window recreation); the token drops a stale, superseded switch.
+  const streamRef = useRef<MediaStream | null>(null);
+  const seqRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [blurOn, setBlurOn] = useState(false);
@@ -241,18 +245,20 @@ function CameraBubble() {
     rafRef.current = requestAnimationFrame(drawBlurFrame);
   }, [compositeBlur]);
 
-  // Acquire the camera stream once, resiliently. Switching cameras closes+reopens
-  // this bubble, and external webcams (a) get a fresh deviceId when (un)plugged, so
-  // a stale `exact` id throws OverconstrainedError, and (b) are slower to release,
-  // so a reopen can briefly hit NotReadableError ("busy"). Handle both instead of
-  // failing: fall back to the default camera on a stale id, and retry on busy.
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let cancelled = false;
+  // Start (or restart) the camera for `deviceId` (null = default). Used at mount AND
+  // on every hot switch via the camera-device-changed event, so the bubble NEVER has
+  // to be recreated to change camera — recreating the NSPanel is the path that risks
+  // the use-after-free crash. The seq token drops a getUserMedia that resolves after
+  // a newer switch. Keeps the robustness: a stale `exact` id falls back to default;
+  // busy/permission surface an error the main window picks up via camera:error.
+  const startCamera = useCallback(async (deviceId: string | null) => {
+    const seq = ++seqRef.current;
 
-    const deviceId = new URLSearchParams(window.location.search).get("deviceId");
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
 
-    const open = async (): Promise<MediaStream> => {
+    const getStream = async (): Promise<MediaStream> => {
       const wanted: MediaTrackConstraints = deviceId
         ? { deviceId: { exact: deviceId } }
         : { facingMode: "user" };
@@ -261,60 +267,55 @@ function CameraBubble() {
       } catch (e) {
         const name = e instanceof DOMException ? e.name : "";
         if (deviceId && (name === "OverconstrainedError" || name === "NotFoundError")) {
-          // The selected id is gone/stale -> use whatever camera is available.
           return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
         throw e;
       }
     };
 
-    const acquire = async () => {
-      const MAX_ATTEMPTS = 4;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        if (cancelled) return;
-        try {
-          const media = await open();
-          if (cancelled) {
-            media.getTracks().forEach((t) => t.stop());
-            return;
-          }
-          stream = media;
-          if (videoRef.current) videoRef.current.srcObject = media;
-          setError(null);
-          return;
-        } catch (e) {
-          const name = e instanceof DOMException ? e.name : "";
-          const busy = name === "NotReadableError" || name === "AbortError";
-          if (busy && attempt < MAX_ATTEMPTS - 1) {
-            await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
-            continue;
-          }
-          if (cancelled) return;
-          const msg =
-            name === "NotAllowedError"
-              ? "Permiso de cámara denegado. Actívalo en Ajustes del Sistema → Privacidad → Cámara."
-              : busy
-                ? "La cámara está ocupada por otra app o tardó en responder. Ciérrala y reintenta."
-                : name === "OverconstrainedError" || name === "NotFoundError"
-                  ? "No se encontró la cámara seleccionada."
-                  : "No se pudo abrir la cámara.";
-          setError(msg);
-          // Tell the main window so it un-sticks the camera toggle and shows the error.
-          void emit(EV_CAM_ERROR, msg);
-          return;
-        }
+    try {
+      const media = await getStream();
+      if (seq !== seqRef.current) {
+        media.getTracks().forEach((t) => t.stop());
+        return;
       }
-    };
+      streamRef.current = media;
+      if (videoRef.current) videoRef.current.srcObject = media;
+      setError(null);
+    } catch (e) {
+      if (seq !== seqRef.current) return;
+      const name = e instanceof DOMException ? e.name : "";
+      const msg =
+        name === "NotAllowedError"
+          ? "Permiso de cámara denegado. Actívalo en Ajustes del Sistema → Privacidad → Cámara."
+          : name === "NotReadableError" || name === "AbortError"
+            ? "La cámara está ocupada por otra app. Ciérrala y reintenta."
+            : "No se pudo abrir la cámara.";
+      setError(msg);
+      void emit(EV_CAM_ERROR, msg);
+    }
+  }, []);
 
-    void acquire();
+  // Mount: start the camera for the URL's deviceId; then hot-switch on the main
+  // window's camera-device-changed events (no window recreation = no crash).
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    const deviceId = new URLSearchParams(window.location.search).get("deviceId");
+    void startCamera(deviceId);
+
+    void listen<string | null>("camera-device-changed", (e) => {
+      if (!cancelled) void startCamera(e.payload ?? null);
+    }).then((fn) => (cancelled ? fn() : (unlisten = fn)));
 
     return () => {
       cancelled = true;
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
+      unlisten?.();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     };
-  }, []);
+  }, [startCamera]);
 
   // Start/stop the blur pipeline when the toggle flips. The segmenter is created
   // lazily on first enable and kept for later toggles; the rAF loop is what

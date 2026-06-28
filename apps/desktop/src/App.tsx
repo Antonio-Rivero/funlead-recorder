@@ -22,6 +22,7 @@ import {
   showControls,
   startRecording,
   stopRecording,
+  setCameraDevice,
   toggleCamera,
   transcribeRecording,
   type DisplayInfo,
@@ -274,32 +275,21 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
     }
   }, [refreshCameras, selectedCamera]);
 
-  // La burbuja lee su dispositivo al abrir, así que para cambiar de cámara mientras
-  // está visible la cerramos y reabrimos con el nuevo device. La ventana se destruye
-  // de forma asíncrona, así que esperamos a que cierre antes de reabrir.
-  const waitCameraClosed = useCallback(async () => {
-    for (let i = 0; i < 20; i++) {
-      const open = await isCameraOpen().catch(() => false);
-      if (!open) return;
-      await new Promise((r) => setTimeout(r, 50));
-    }
-  }, []);
-
   const onSelectCamera = useCallback(
     async (deviceId: string) => {
       setSelectedCamera(deviceId);
       if (!cameraOn) return;
       setError(null);
       try {
-        await toggleCamera(null);
-        await waitCameraClosed();
-        const open = await toggleCamera(deviceId || null);
-        setCameraOn(open);
+        // Cambia la burbuja viva EN SITIO — sin cerrar+reabrir (eso recrea el NSPanel
+        // y arriesga el crash por use-after-free). La burbuja reinicia su propio
+        // getUserMedia al recibir el evento camera-device-changed.
+        await setCameraDevice(deviceId || null);
       } catch (e) {
         setError(typeof e === "string" ? e : "No se pudo cambiar la cámara.");
       }
     },
-    [cameraOn, waitCameraClosed],
+    [cameraOn],
   );
 
   // La burbuja avisa por "camera:error" si getUserMedia falla (webcam externa
