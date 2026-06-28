@@ -14,11 +14,14 @@ usuario). Sin secretos ni datos de clientes.
 
 - [~] Fase 0 — base: mergear a main del OSS el fix de CPU+recorte (rama
       port/cpu-videotoolbox, commit 3c6e832). Gate clippy en curso.
-- [ ] Fase 1 — cámara funcional: portar camera.tsx de yoom (470 líneas:
-      getUserMedia con el fix de robustez de cámara externa, blur MediaPipe,
-      espejo, resize, eventos) + camera.css + la selección de cámara en App.tsx
-      (refreshCameras/handleSelectCamera/toggle/EV_CAM_ERROR) + camera.rs si
-      difiere. Reemplaza el placeholder de 29 líneas. Verificar tsc + cargo.
+- [~] Fase 1 — cámara funcional:
+      - [x] 1a: camera.tsx (450 líneas, getUserMedia + robustez cámara externa +
+            blur MediaPipe + espejo + resize) + camera.css, portados de yoom y
+            DESACOPLADOS de settings (espejo fijo on). camera.rs del OSS ya pasa
+            deviceId por URL → cámara funcional default. Build verde. commit 58e7314.
+      - [ ] 1b: selección de cámara en App.tsx del OSS (enumerar videoinput,
+            dropdown, handleSelectCamera close+reopen, listener camera:error,
+            toggle con deviceId, control del blur por EV_SET_BLUR).
 - [ ] Fase 2 — subida self-host: portar upload.ts (con el fix red-vs-token +
       reintento) ADAPTADO a self-host (baseUrl del usuario, no funlead.app) + la
       UI de subida en App.tsx (saved → trim → subir) + token/endpoint en settings.
