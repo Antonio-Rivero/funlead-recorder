@@ -3,6 +3,7 @@ import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { Editor, type EditManifest } from "@funlead-recorder/editor";
 import "./app.css";
+import { loadSettings, saveSettings, type RecorderSettings } from "./settings";
 import { BRAND } from "./branding";
 import { createEditorIO, type RenderState } from "./editor-io";
 import {
@@ -170,6 +171,15 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conn, setConn] = useState<RecorderSettings>(() => loadSettings());
+
+  const updateConn = useCallback((patch: Partial<RecorderSettings>) => {
+    setConn((prev) => {
+      const next = { ...prev, ...patch };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -363,6 +373,22 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
           )}
           <div className="app__spacer" />
         </div>
+
+        <details className="field">
+          <summary className="field__label">Conexión (para subir a tu instancia)</summary>
+          <input
+            type="text"
+            placeholder="https://tu-instancia.vercel.app"
+            value={conn.baseUrl}
+            onChange={(e) => updateConn({ baseUrl: e.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="RECORDING_DESKTOP_TOKEN"
+            value={conn.desktopToken}
+            onChange={(e) => updateConn({ desktopToken: e.target.value })}
+          />
+        </details>
 
         <button
           className="btn btn--record btn--block"
