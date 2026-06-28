@@ -3,7 +3,8 @@ import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { Editor, type EditManifest } from "@funlead-recorder/editor";
 import "./app.css";
-import { loadSettings, saveSettings, type RecorderSettings } from "./settings";
+import { loadSettings, saveSettings, hasConnection, type RecorderSettings } from "./settings";
+import { uploadRecording, AuthError } from "./upload";
 import { BRAND } from "./branding";
 import { createEditorIO, type RenderState } from "./editor-io";
 import {
@@ -481,6 +482,58 @@ function Preview({
   useEffect(() => io.dispose, [io]);
   const src = useMemo(() => io.io.resolveMediaSrc(rawPath), [io, rawPath]);
 
+  const [upload, setUpload] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [uploadPct, setUploadPct] = useState(0);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const onUpload = useCallback(async () => {
+    const s = loadSettings();
+    if (!hasConnection(s)) {
+      setUpload("error");
+      setUploadError(
+        "Configura la URL de tu instancia y el token en «Conexión» (pantalla de inicio) antes de subir.",
+      );
+      return;
+    }
+    setUpload("uploading");
+    setUploadPct(0);
+    setUploadError(null);
+    setShareUrl(null);
+    try {
+      const result = await uploadRecording({
+        baseUrl: s.baseUrl,
+        token: s.desktopToken,
+        path: rawPath,
+        title: projectName,
+        onProgress: setUploadPct,
+      });
+      setShareUrl(result.shareUrl);
+      setUpload("done");
+    } catch (e) {
+      setUpload("error");
+      setUploadError(
+        e instanceof AuthError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "No se pudo subir la grabación.",
+      );
+    }
+  }, [rawPath, projectName]);
+
+  const onCopy = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }, [shareUrl]);
+
   return (
     <div className="stack">
       <div className="card stack">
@@ -493,6 +546,13 @@ function Preview({
           >
             Editar
           </button>
+          <button
+            className="btn"
+            onClick={() => void onUpload()}
+            disabled={upload === "uploading"}
+          >
+            {upload === "uploading" ? `Subiendo… ${uploadPct}%` : "Subir a mi instancia"}
+          </button>
           <button className="btn" onClick={() => revealItemInDir(rawPath).catch(() => {})}>
             Revelar en Finder
           </button>
@@ -501,6 +561,18 @@ function Preview({
             Nueva grabación
           </button>
         </div>
+
+        {upload === "done" && shareUrl && (
+          <div className="row">
+            <code className="field__label" style={{ wordBreak: "break-all" }}>
+              {shareUrl}
+            </code>
+            <button className="btn btn--ghost btn--sm" onClick={() => void onCopy()}>
+              {copied ? "¡Copiado!" : "Copiar enlace"}
+            </button>
+          </div>
+        )}
+        {upload === "error" && uploadError && <p className="error">{uploadError}</p>}
       </div>
 
       <Transcribe rawPath={rawPath} projectName={projectName} />
