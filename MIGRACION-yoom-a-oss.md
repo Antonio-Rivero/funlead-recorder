@@ -37,8 +37,11 @@ usuario). Sin secretos ni datos de clientes.
                   link /v/<token> copiable + errores. Build verde. commit.
       NOTA tooling: el `next lint` del OSS web está roto (Invalid project directory);
       verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
-- [ ] Fase 3 — paridad de ajustes: cuenta atrás, mirror, showTimer, calidad (ya),
-      lo que falte de yoom.
+- [~] Fase 3 — paridad de ajustes:
+      - [x] cuenta atrás 3-2-1 (settings.countdownEnabled + overlay + toggle). commit.
+      - [ ] toggle de espejo de cámara (mirror): hoy hardcoded true; pasarlo por URL
+            param a camera.html (localStorage NO se comparte entre webviews) + toggle.
+      - [ ] showTimer / otros ajustes que falten de yoom.
 - [ ] Fase 4 — jubilar yoom-desktop cuando el OSS tenga paridad.
 
 ## Estado de los 4 fixes del loop en el OSS
