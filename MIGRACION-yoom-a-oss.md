@@ -22,10 +22,17 @@ usuario). Sin secretos ni datos de clientes.
       - [x] 1b: selección de cámara en App.tsx (enumerar videoinput, dropdown,
             cambio close+reopen, listener camera:error, toggle con deviceId). commit.
             Pendiente menor: control del blur por EV_SET_BLUR (toggle en UI) → Fase 3.
-- [ ] Fase 2 — subida self-host: portar upload.ts (con el fix red-vs-token +
-      reintento) ADAPTADO a self-host (baseUrl del usuario, no funlead.app) + la
-      UI de subida en App.tsx (saved → trim → subir) + token/endpoint en settings.
-      Es la W4 del OSS ("subir a mi servidor"). Respetar gate de privacidad.
+- [~] Fase 2 — subida self-host (auth por token, decidido por Antonio):
+      - [x] 2a (web): nuevo RECORDING_DESKTOP_TOKEN aceptado como Authorization:
+            Bearer en /api/recordings (POST) y /api/recordings/upload (handshake),
+            vía guard requireOwnerOrDesktop + isValidDesktopToken (timing-safe,
+            env-gated, aditivo). tsc verde. commit 63e94ff.
+      - [ ] 2b (desktop): settings (AÑADIR plugin-store al OSS: baseUrl de la
+            instancia + token) + upload.ts (Bearer, endpoints /api/recordings +
+            /api/recordings/upload, con el fix red-vs-token + reintento) + UI de
+            subir en App.tsx (tras grabar/editar → subir → mostrar link /v/<token>).
+      NOTA tooling: el `next lint` del OSS web está roto (Invalid project directory);
+      verificación del web = tsc (eslint no ejecutable desde aquí). Arreglar aparte.
 - [ ] Fase 3 — paridad de ajustes: cuenta atrás, mirror, showTimer, calidad (ya),
       lo que falte de yoom.
 - [ ] Fase 4 — jubilar yoom-desktop cuando el OSS tenga paridad.
