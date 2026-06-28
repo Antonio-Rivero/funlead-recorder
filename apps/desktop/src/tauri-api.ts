@@ -7,7 +7,7 @@ export type DisplayInfo = { id: number; title: string };
 export type InputDeviceInfo = { id: string; name: string };
 export type StopResult = { path: string; mic_warning: string | null };
 export type PermissionStatus = "granted" | "denied" | "unsupported";
-export type Quality = "auto" | "720" | "1080";
+export type Quality = "auto" | "720" | "1080" | "native";
 
 export type ProjectDoc = { raw_path: string; manifest: EditManifest; transcript?: string | null };
 export type ProjectInfo = { name: string; raw_path: string };

@@ -200,3 +200,38 @@ pub fn command(app: &AppHandle, data_dir: &Path) -> Result<FfmpegCommand, String
     let path = ensure(app, data_dir)?;
     Ok(FfmpegCommand::new_with_path(&path))
 }
+
+
+/// Caches whether the resolved ffmpeg exposes Apple's hardware H.264 encoder
+/// (`h264_videotoolbox`). Probed once; `None` until the first check.
+static VIDEOTOOLBOX: Mutex<Option<bool>> = Mutex::new(None);
+
+/// Whether the resolved ffmpeg can encode with `h264_videotoolbox` (the Apple
+/// Media Engine). Probed once via `ffmpeg -encoders` and cached for the process.
+/// On any failure it reports `false`, so the recorder falls back to libx264.
+pub fn supports_videotoolbox(app: &AppHandle, data_dir: &Path) -> bool {
+    if let Ok(guard) = VIDEOTOOLBOX.lock() {
+        if let Some(cached) = *guard {
+            return cached;
+        }
+    }
+    let detected = probe_videotoolbox(app, data_dir);
+    if let Ok(mut guard) = VIDEOTOOLBOX.lock() {
+        *guard = Some(detected);
+    }
+    detected
+}
+
+fn probe_videotoolbox(app: &AppHandle, data_dir: &Path) -> bool {
+    use std::process::{Command, Stdio};
+    let Ok(path) = ensure(app, data_dir) else {
+        return false;
+    };
+    Command::new(&path)
+        .args(["-hide_banner", "-encoders"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("h264_videotoolbox"))
+        .unwrap_or(false)
+}

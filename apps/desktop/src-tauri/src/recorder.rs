@@ -161,7 +161,7 @@ fn dirs_home() -> Option<PathBuf> {
 }
 
 /// Spawns a capture-encoder ffmpeg with EXACTLY the recorder's tuned args
-/// (rawvideo BGRA in → libx264 yuv420p out, wall-clock timestamps + VFR, no
+/// (rawvideo BGRA in → H.264 yuv420p out (hardware videotoolbox when available, else libx264), wall-clock timestamps + VFR, no
 /// `-shortest`). Reused by `start_recording` and each `resume_recording`.
 fn spawn_capture_ffmpeg(
     app: &AppHandle,
@@ -173,8 +173,8 @@ fn spawn_capture_ffmpeg(
     let out_str = out_path
         .to_str()
         .ok_or("La ruta de salida no es UTF-8 válido.")?;
-    crate::ffmpeg::command(app, data_dir)?
-        .args(["-f", "rawvideo"])
+    let mut cmd = crate::ffmpeg::command(app, data_dir)?;
+    cmd.args(["-f", "rawvideo"])
         .args(["-pix_fmt", "bgra"])
         .args(["-s", &format!("{width}x{height}")])
         // scap delivers frames at a variable, slower-than-requested real rate (a
@@ -184,10 +184,29 @@ fn spawn_capture_ffmpeg(
         // input rate; otherwise ffmpeg packs the slow frames as if they were `fps`
         // apart and the clip plays back sped up (an 18 s capture became 3.7 s).
         .args(["-use_wallclock_as_timestamps", "1"])
-        .args(["-i", "-"])
-        .args(["-c:v", "libx264"])
-        .args(["-preset", "veryfast"])
-        .args(["-pix_fmt", "yuv420p"])
+        .args(["-i", "-"]);
+
+    // Encoder: prefer Apple's hardware h264_videotoolbox (Media Engine). It uses
+    // ~7x less CPU than libx264 software, so the focus-less camera-bubble WebView
+    // keeps its cycles and the webcam stops stuttering in long captures. Fall back
+    // to libx264 only when videotoolbox isn't available.
+    if crate::ffmpeg::supports_videotoolbox(app, data_dir) {
+        let bitrate = if height >= 2000 {
+            "40M"
+        } else if height > 720 {
+            "12M"
+        } else {
+            "6M"
+        };
+        cmd.args(["-c:v", "h264_videotoolbox"])
+            .args(["-b:v", bitrate])
+            .args(["-realtime", "1"])
+            .args(["-allow_sw", "1"]);
+    } else {
+        cmd.args(["-c:v", "libx264"]).args(["-preset", "veryfast"]);
+    }
+
+    cmd.args(["-pix_fmt", "yuv420p"])
         // Variable frame rate: preserve the real per-frame timing (no duplicated
         // frames) so the encoded duration equals wall-clock time.
         .args(["-fps_mode", "vfr"])
@@ -248,7 +267,11 @@ pub fn start_recording(
     let output_resolution = match quality {
         "720" => Resolution::_720p,
         "1080" => Resolution::_1080p,
-        _ => Resolution::Captured,
+        "native" => Resolution::Captured,
+        // Default ("auto"): cap to 1080p. Capturing the native Retina/4K size meant
+        // pushing tens-of-MB BGRA frames through the pipe plus a CPU pixel convert,
+        // which (with the software encoder) pegged the CPU and starved the camera.
+        _ => Resolution::_1080p,
     };
 
     let options = Options {
@@ -704,12 +727,22 @@ pub fn trim_recording(
     let out_path = dir.join(format!("FunLead-{stamp}.trim.mp4"));
     let out_str = path_string(&out_path)?;
 
-    let status = crate::ffmpeg::command(app, data_dir)?
-        .args(["-ss", &format!("{in_sec}")])
+    let mut cmd = crate::ffmpeg::command(app, data_dir)?;
+    cmd.args(["-ss", &format!("{in_sec}")])
         .args(["-to", &format!("{out_sec}")])
-        .args(["-i", path])
-        .args(["-c:v", "libx264"])
-        .args(["-preset", "veryfast"])
+        .args(["-i", path]);
+    // Re-encode for a frame-accurate cut, on the hardware encoder when available
+    // (same reason as the capture path: libx264 software pegs the CPU on long, high
+    // resolution clips). Fixed 16 Mbps keeps screencast quality without probing the
+    // input (ffprobe isn't bundled). Falls back to libx264 if videotoolbox is absent.
+    if crate::ffmpeg::supports_videotoolbox(app, data_dir) {
+        cmd.args(["-c:v", "h264_videotoolbox"])
+            .args(["-b:v", "16M"])
+            .args(["-allow_sw", "1"]);
+    } else {
+        cmd.args(["-c:v", "libx264"]).args(["-preset", "veryfast"]);
+    }
+    let status = cmd
         .args(["-pix_fmt", "yuv420p"])
         .args(["-c:a", "aac"])
         .args(["-b:a", "192k"])

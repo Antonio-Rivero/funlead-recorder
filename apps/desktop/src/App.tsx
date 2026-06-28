@@ -38,9 +38,10 @@ type Screen =
   | { kind: "editing"; rawPath: string; projectName: string; manifest: EditManifest | null };
 
 const QUALITIES: { value: Quality; label: string }[] = [
-  { value: "auto", label: "Original (nativa)" },
+  { value: "auto", label: "Automática (1080p)" },
   { value: "1080", label: "1080p" },
   { value: "720", label: "720p" },
+  { value: "native", label: "Nativa (máxima · más CPU)" },
 ];
 
 // Project name derived from the recording's file name (FunLead-YYYYmmdd-HHMMSS).
