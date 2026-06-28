@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { Editor, type EditManifest } from "@funlead-recorder/editor";
 import "./app.css";
 import { loadSettings, saveSettings, hasConnection, type RecorderSettings } from "./settings";
@@ -191,6 +191,32 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
       await new Promise((r) => setTimeout(r, 1000));
     }
     setCountdown(null);
+  }, []);
+
+  // La burbuja de cámara es otra ventana (su localStorage no se comparte), así que
+  // el espejo viaja por eventos: se emite al togglear, y cuando una burbuja recién
+  // abierta avisa (camera:ready) se le reenvía el valor actual (ref = sin stale).
+  const mirrorRef = useRef(conn.cameraMirror);
+  useEffect(() => {
+    mirrorRef.current = conn.cameraMirror;
+  }, [conn.cameraMirror]);
+  const onToggleMirror = useCallback(
+    (next: boolean) => {
+      updateConn({ cameraMirror: next });
+      void emit("camera:set-mirror", { on: next });
+    },
+    [updateConn],
+  );
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    let cancelled = false;
+    void listen("camera:ready", () => {
+      void emit("camera:set-mirror", { on: mirrorRef.current });
+    }).then((fn) => (cancelled ? fn() : (un = fn)));
+    return () => {
+      cancelled = true;
+      un?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -428,6 +454,15 @@ function Setup({ setScreen }: { setScreen: (s: Screen) => void }) {
             onChange={(e) => updateConn({ countdownEnabled: e.target.checked })}
           />
           <span className="field__label">Cuenta atrás 3-2-1 antes de grabar</span>
+        </label>
+
+        <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={conn.cameraMirror}
+            onChange={(e) => onToggleMirror(e.target.checked)}
+          />
+          <span className="field__label">Espejar la cámara (verte como en un espejo)</span>
         </label>
 
         <button

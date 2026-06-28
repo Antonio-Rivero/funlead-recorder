@@ -9,10 +9,12 @@ export interface RecorderSettings {
   desktopToken: string;
   /** Cuenta atrás 3-2-1 antes de empezar a grabar. Default true. */
   countdownEnabled: boolean;
+  /** Espejar la cámara (vista selfie). Default true. */
+  cameraMirror: boolean;
 }
 
 const KEY = "funlead-recorder-connection";
-const DEFAULTS: RecorderSettings = { baseUrl: "", desktopToken: "", countdownEnabled: true };
+const DEFAULTS: RecorderSettings = { baseUrl: "", desktopToken: "", countdownEnabled: true, cameraMirror: true };
 
 export function loadSettings(): RecorderSettings {
   try {
@@ -24,6 +26,8 @@ export function loadSettings(): RecorderSettings {
       desktopToken: (parsed.desktopToken ?? "").trim(),
       countdownEnabled:
         typeof parsed.countdownEnabled === "boolean" ? parsed.countdownEnabled : true,
+      cameraMirror:
+        typeof parsed.cameraMirror === "boolean" ? parsed.cameraMirror : true,
     };
   } catch {
     return { ...DEFAULTS };
@@ -36,6 +40,7 @@ export function saveSettings(next: RecorderSettings): void {
       baseUrl: next.baseUrl.trim().replace(/\/+$/, ""),
       desktopToken: next.desktopToken.trim(),
       countdownEnabled: next.countdownEnabled,
+      cameraMirror: next.cameraMirror,
     };
     localStorage.setItem(KEY, JSON.stringify(clean));
   } catch {

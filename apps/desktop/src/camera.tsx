@@ -11,6 +11,7 @@ const EV_BLUR_STATUS = "camera:blur-status";
 const EV_READY = "camera:ready";
 // Bubble -> main: getUserMedia failed, so the main window can un-stick the toggle.
 const EV_CAM_ERROR = "camera:error";
+const EV_SET_MIRROR = "camera:set-mirror";
 // Resize the bubble to a preset (logical px), sent by the floating control bar.
 const EV_SET_SIZE = "camera:set-size";
 
@@ -96,9 +97,8 @@ function CameraBubble() {
   const [error, setError] = useState<string | null>(null);
   const [blurOn, setBlurOn] = useState(false);
   const [blurStatus, setBlurStatus] = useState<BlurStatus>("off");
-  // Selfie mirror (default on); synced from Ajustes via settings + live event.
-  // Selfie mirror on by default (the OSS has no settings store yet; Fase 3).
-  const mirror = true;
+  // Selfie mirror: on by default, follows the main window's live toggle.
+  const [mirror, setMirror] = useState(true);
 
   const segmenterRef = useRef<MPImageSegmenter | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -373,6 +373,19 @@ function CameraBubble() {
       else unlisten = fn;
     });
     void emit(EV_READY);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  // The main window also owns the selfie-mirror toggle; obey its events.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void listen<{ on: boolean }>(EV_SET_MIRROR, (e) => {
+      setMirror(Boolean(e.payload?.on));
+    }).then((fn) => (cancelled ? fn() : (unlisten = fn)));
     return () => {
       cancelled = true;
       unlisten?.();
